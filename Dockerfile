@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     libfuse3-dev \
     fuse3 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -18,7 +19,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src/ ./src/
 
 # Build the application in release mode
-RUN cargo build --release
+RUN cargo build --release --verbose
 
 # Runtime stage
 FROM debian:bookworm-slim

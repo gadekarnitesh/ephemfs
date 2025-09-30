@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Create app directory
 WORKDIR /app
 
-# Copy Cargo files first for better caching
+# Copy only Cargo.toml (not Cargo.lock)
 COPY Cargo.toml ./
 
 # Generate compatible lock file in container

@@ -1,5 +1,5 @@
 # Multi-stage build for Rust FUSE secrets filesystem
-FROM rust:1.75-slim as builder
+FROM rust:1.80-slim as builder
 
 # Install system dependencies for building
 RUN apt-get update && apt-get install -y \
@@ -13,7 +13,10 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy Cargo files first for better caching
-COPY Cargo.toml Cargo.lock ./
+COPY Cargo.toml ./
+
+# Generate compatible lock file in container
+RUN cargo generate-lockfile
 
 # Copy source code
 COPY src/ ./src/

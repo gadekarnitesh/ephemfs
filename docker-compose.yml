@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Secret FUSE filesystem sidecar
+  secret-fuse:
+    build: .
+    image: secret-fuse:latest
+    container_name: secret-fuse-sidecar
+    privileged: true  # Required for FUSE
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      # Demo secrets via environment variables
+      - DATABASE_PASSWORD=production_db_password_456
+      - API_KEY=sk-prod-abcdef123456789
+      - JWT_SECRET=production-jwt-secret-key-2024
+      - REDIS_PASSWORD=redis_prod_789
+      - VAULT_TOKEN=hvs.CAESIJ1234567890abcdef
+      - SECRET_STRIPE_KEY=sk_live_stripe_key_example
+      - SECRET_SENDGRID_API_KEY=SG.sendgrid_api_key_example
+      # External secret fetching configuration
+      - SECRETFS_URLS=https://api.example.com/secrets,https://vault.example.com/v1/secret
+      - SECRETFS_AUTH_TOKEN=${VAULT_TOKEN:-demo-token-123}
+      - SECRETFS_FETCHER_TYPE=http
+      - SECRETFS_TIMEOUT_SECONDS=30
+      - SECRETFS_HEADERS=X-Environment:production,X-Service:myapp
+      # Encryption configuration
+      - SECRETFS_CIPHER_TYPE=default
+      - SECRETFS_ENCRYPTION_KEY=${ENCRYPTION_KEY:-demo-encryption-key-2024}
+      - CONFIG_JSON={"env":"production","debug":false,"database":{"host":"prod-db.example.com","port":5432},"cache":{"redis_url":"redis://prod-cache.example.com:6379"}}
+    volumes:
+      - secrets-volume:/mnt/secrets:shared
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "test", "-f", "/mnt/secrets/database_password"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Main application container (example)
+  app:
+    image: alpine:3.18
+    container_name: main-app
+    depends_on:
+      secret-fuse:
+        condition: service_healthy
+    volumes:
+      - secrets-volume:/mnt/secrets:ro  # Read-only access to secrets
+    command: |
+      sh -c "
+        echo 'Main application started'
+        echo 'Available secrets:'
+        ls -la /mnt/secrets/
+        echo ''
+        echo 'Database password:'
+        cat /mnt/secrets/database_password
+        echo ''
+        echo 'API Key:'
+        cat /mnt/secrets/api_key
+        echo ''
+        echo 'Config:'
+        cat /mnt/secrets/config.json
+        echo ''
+        echo 'Custom secrets:'
+        cat /mnt/secrets/stripe-key 2>/dev/null || echo 'stripe-key not found'
+        cat /mnt/secrets/sendgrid-api-key 2>/dev/null || echo 'sendgrid-api-key not found'
+        echo ''
+        echo 'Keeping container running...'
+        sleep infinity
+      "
+    restart: unless-stopped
+
+volumes:
+  secrets-volume:
+    driver: local

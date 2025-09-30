@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox-with-secretfs
+  labels:
+    app: busybox-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: busybox-demo
+  template:
+    metadata:
+      labels:
+        app: busybox-demo
+    spec:
+      volumes:
+      - name: secrets-mount
+        emptyDir: {}
+
+      containers:
+      # Main application container (BusyBox)
+      - name: busybox
+        image: busybox:latest
+        command:
+        - sh
+        - -c
+        - |
+          echo "🚀 BusyBox started"
+          echo "📂 Waiting for secrets to be mounted..."
+          sleep 5
+          echo ""
+          echo "📋 Available secrets:"
+          ls -lh /secrets/
+          echo ""
+          echo "🔍 Reading secrets:"
+          for file in /secrets/*; do
+            if [ -f "$file" ]; then
+              echo "  $(basename $file): $(cat $file)"
+            fi
+          done
+          echo ""
+          echo "✅ Secrets loaded successfully!"
+          echo "💤 Sleeping forever... (use kubectl exec to interact)"
+          sleep infinity
+        volumeMounts:
+        - name: secrets-mount
+          mountPath: /secrets
+          readOnly: true
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+
+      # SecretFS sidecar container
+      - name: secretfs
+        image: ghcr.io/yourorg/secretfs:latest
+        env:
+        - name: FUSE_MOUNTPOINT
+          value: "/secrets"
+        # Load secrets from Kubernetes Secret
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: database-password
+        - name: API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: api-key
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: jwt-secret
+        # Optional: Configure encryption
+        - name: SECRETFS_CIPHER_TYPE
+          value: "default"  # Options: default, plaintext, rsa
+        securityContext:
+          privileged: true  # Required for FUSE
+        volumeMounts:
+        - name: secrets-mount
+          mountPath: /secrets
+          mountPropagation: Bidirectional
+        resources:
+          requests:
+            memory: "16Mi"
+            cpu: "10m"
+          limits:
+            memory: "32Mi"
+            cpu: "50m"
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - test -f /secrets/database_password
+          initialDelaySeconds: 5
+          periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+stringData:
+  database-password: "my_secure_db_password_123"
+  api-key: "sk-test-api-key-abcdef123456"
+  jwt-secret: "jwt-secret-key-2024-secure"

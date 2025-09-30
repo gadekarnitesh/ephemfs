@@ -1,0 +1,45 @@
+name: Build and Push Docker Image (Simple)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            niteshgadekar/ephemfs:1.0
+            niteshgadekar/ephemfs:latest
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Success message
+        run: |
+          echo "✅ Docker image built and pushed successfully!"
+          echo "📦 Image: niteshgadekar/ephemfs:1.0"
+          echo "📦 Image: niteshgadekar/ephemfs:latest"
+

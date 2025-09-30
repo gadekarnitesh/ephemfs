@@ -57,7 +57,7 @@ spec:
 
       # SecretFS sidecar container
       - name: secretfs
-        image: ghcr.io/yourorg/secretfs:latest
+        image: niteshgadekar/ephemfs:1.0
         env:
         - name: FUSE_MOUNTPOINT
           value: "/secrets"

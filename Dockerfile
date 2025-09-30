@@ -1,52 +1,27 @@
-# Multi-stage build for Rust FUSE secrets filesystem
-FROM rust:1.80-slim as builder
+FROM ubuntu:22.04
 
-# Install system dependencies for building
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
+    curl \
+    build-essential \
     pkg-config \
+    libssl-dev \
     libfuse3-dev \
     fuse3 \
-    build-essential \
+    ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Install Rust nightly via rustup
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain nightly
+ENV PATH="/root/.cargo/bin:${PATH}"
+
 WORKDIR /app
 
-# Copy only Cargo.toml (not Cargo.lock)
-COPY Cargo.toml ./
-
-# Generate compatible lock file in container
-RUN cargo generate-lockfile
-
-# Copy source code
+# Copy source
+COPY Cargo.toml .
 COPY src/ ./src/
 
-# Build the application in release mode
-RUN cargo build --release --verbose
+# Build release binary with nightly (edition2024 support)
+RUN cargo +nightly build --release
 
-# Runtime stage
-FROM debian:bookworm-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    fuse3 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && mkdir -p /mnt/secrets
-
-# Copy the binary from builder stage
-COPY --from=builder /app/target/release/ephemfs /usr/local/bin/secretfs
-COPY --from=builder /app/target/release/secretfs-keygen /usr/local/bin/secretfs-keygen
-
-# Create user (UID 1000 to match common K8s setups)
-RUN useradd -u 1000 -r -s /bin/bash -m -d /home/secretfs secretfs
-
-# Set default environment variables
-ENV FUSE_MOUNTPOINT=/secrets
-ENV RUST_LOG=info
-
-# Expose the mount point as a volume
-VOLUME ["/secrets"]
-
-# Default command (will be overridden by K8s if needed)
-CMD ["secretfs", "/secrets"]
+CMD ["/app/target/release/secretfs", "/secrets"]

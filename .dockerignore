@@ -1,5 +1,13 @@
 Cargo.lock
 target/
 .git/
-*.md
 .gitignore
+*.md
+README.md
+docs/
+examples/
+tests/
+.github/
+*.sh
+docker-compose.yml
+k8s-*.yaml

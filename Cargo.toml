@@ -5,18 +5,18 @@ edition = "2021"
 
 [dependencies]
 fuser = "0.16.0"
-libc = "0.2.176"
-reqwest = { version = "0.11", features = ["json"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-tokio = { version = "1.0", features = ["full"] }
-rsa = "0.9"
-rand = "0.8"
-base64 = "0.21"
-sha2 = "0.10"
+libc = "0.2.155"
+reqwest = { version = "0.11.27", features = ["json"] }
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.115"
+tokio = { version = "1.37.0", features = ["full"] }
+rsa = "0.9.6"
+rand = "0.8.5"
+base64 = "0.21.7"
+sha2 = "0.10.8"
 
 [dev-dependencies]
-tempfile = "3.0"
+tempfile = "3.10.1"
 
 [lib]
 name = "ephemfs"
@@ -29,7 +29,3 @@ path = "src/main.rs"
 [[bin]]
 name = "secretfs-keygen"
 path = "src/bin/secretfs-keygen.rs"
-
-[[example]]
-name = "secret_reader_app"
-path = "examples/secret_reader_app.rs"
